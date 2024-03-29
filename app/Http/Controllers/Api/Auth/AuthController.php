@@ -14,38 +14,30 @@ class AuthController extends Controller
 {
     public function login(Request $request):JsonResponse
     {
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        if ($validator->fails()) {
+        if (!Auth::attempt($request->only(['email', 'password']))) {
             return response()->json([
-                'status' => 422,
-                'message' => $validator->messages(),
-            ], 422);
-        }else{
-            if (!Auth::attempt($request->only(['email', 'password']))) {
-                return response()->json([
-                    'status' => 401,
-                    'message' => 'Invalid login details'
-                ], 401);
-            }
-
-            $user = $request->user()->select('id', 'email', 'first_name', 'last_name', 'password')->first();
-            $user->tokens()->delete();
-            $token = $user->createToken('auth_token')->plainTextToken;
-
-            return response()->json([
-                'status' => 200,
-                'message' => 'User logged in successfully',
-                'data' => [
-                    'token' => $token,
-                    'user' => $user
-                ]
-            ], 200);
+                'status' => 401,
+                'message' => 'Invalid login details'
+            ], 401);
         }
 
+        $user = $request->user();
+        $user->tokens()->delete();
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'User logged in successfully',
+            'data' => [
+                'token' => $token,
+                'user' => $user
+            ]
+        ], 200);
     }
 
     public function register(Request $request):JsonResponse
