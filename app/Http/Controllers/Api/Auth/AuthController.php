@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\Auth\ForgetPasswordMail;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -82,6 +84,92 @@ class AuthController extends Controller
         return response()->json([
             'status' => 200,
             'message' => 'Logged out successfully'
+        ], 200);
+    }
+
+    public function forgetPassword(Request $request):JsonResponse
+    {
+        $validation = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if($validation->fails()) {
+            return response()->json([
+                'status' => 422,
+                'message' => $validation->errors()
+            ], 422);
+        }else{
+            $user = User::where('email', $request->email)->first();
+            if(!$user){
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Account with this email not found.'
+                ], 404);
+            }
+
+            $code = rand(111111, 999999);
+            User::where('email', $request->email)->update(['otp' => $code]);
+            $data = [
+                'name' => $user->first_name . ' ' . $user->last_name,
+                'code' => $code
+            ];
+
+            Mail::to($user->email)->send(new ForgetPasswordMail('Password Reset Code',$data));
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Password reset code sent successfully'
+            ]);
+        }
+    }
+
+    public function verifyCode(Request $request):JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'otp' => 'required|min:6'
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Account with this email not found.'
+            ], 404);
+        }
+        if ($user->otp != $request->otp) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Invalid code'
+            ], 401);
+        }
+
+        User::where('email', $request->email)->update(['otp' => '0']);
+        return response()->json([
+            'status' => '200',
+            'message' => 'OPT code verified successfully',
+        ], 200);
+
+    }
+
+    public function resetPassword(Request $request):JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|confirmed|string|min:6',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Account with this email not found.'
+            ], 404);
+        }
+        User::where('email', $request->email)->update(['password' => bcrypt($request->password)]);
+        return response()->json([
+            'status' => 200,
+            'message' => 'Password reset successfully'
         ], 200);
     }
 }

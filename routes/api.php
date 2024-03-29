@@ -12,6 +12,9 @@ Route::get('/user', function (Request $request) {
 Route::prefix('auth')->controller(AuthController::class)->group(function () {
     Route::post('/login', 'login');
     Route::post('/register', 'register');
+    Route::post('/forget-password', 'forgetPassword');
+    Route::post('/verify-code', 'verifyCode');
+    Route::post('/reset-password', 'resetPassword');
 });
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/logout', [AuthController::class, 'logout']);
