@@ -54,4 +54,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Brand::class);
     }
+
+    public function categories()
+    {
+        return $this->hasMany(Category::class);
+    }
 }
