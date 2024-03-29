@@ -44,37 +44,31 @@ class AuthController extends Controller
 
     public function register(Request $request):JsonResponse
     {
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'first_name' => 'required|string|max:50',
             'last_name' => 'required|string|max:50',
             'email' => 'required|string|email|max:100|unique:users,email',
             'password' => 'required|confirmed|string|min:6',
         ]);
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 422,
-                'message' => $validator->messages(),
-            ], 422);
-        }else{
-            $user = User::create([
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-            ]);
 
-            if(!$user) {
-                return response()->json([
-                    'status' => 500,
-                    'message' => 'Something went wrong'
-                ], 500);
-            }
+        $user = User::create([
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
 
+        if(!$user) {
             return response()->json([
-                'status' => 201,
-                'message' => 'User registered successfully'
-            ], 201);
+                'status' => 500,
+                'message' => 'Something went wrong'
+            ], 500);
         }
+
+        return response()->json([
+            'status' => 201,
+            'message' => 'User registered successfully'
+        ], 201);
     }
 
     public function logout(Request $request):JsonResponse
@@ -89,38 +83,31 @@ class AuthController extends Controller
 
     public function forgetPassword(Request $request):JsonResponse
     {
-        $validation = Validator::make($request->all(), [
+        $request->validate([
             'email' => 'required|email',
         ]);
 
-        if($validation->fails()) {
+        $user = User::where('email', $request->email)->first();
+        if(!$user){
             return response()->json([
-                'status' => 422,
-                'message' => $validation->errors()
-            ], 422);
-        }else{
-            $user = User::where('email', $request->email)->first();
-            if(!$user){
-                return response()->json([
-                    'status' => 404,
-                    'message' => 'Account with this email not found.'
-                ], 404);
-            }
-
-            $code = rand(111111, 999999);
-            User::where('email', $request->email)->update(['otp' => $code]);
-            $data = [
-                'name' => $user->first_name . ' ' . $user->last_name,
-                'code' => $code
-            ];
-
-            Mail::to($user->email)->send(new ForgetPasswordMail('Password Reset Code',$data));
-
-            return response()->json([
-                'status' => 200,
-                'message' => 'Password reset code sent successfully'
-            ]);
+                'status' => 404,
+                'message' => 'Account with this email not found.'
+            ], 404);
         }
+
+        $code = rand(111111, 999999);
+        User::where('email', $request->email)->update(['otp' => $code]);
+        $data = [
+            'name' => $user->first_name . ' ' . $user->last_name,
+            'code' => $code
+        ];
+
+        Mail::to($user->email)->send(new ForgetPasswordMail('Password Reset Code',$data));
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Password reset code sent successfully'
+        ]);
     }
 
     public function verifyCode(Request $request):JsonResponse
